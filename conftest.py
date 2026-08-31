@@ -97,6 +97,14 @@ def auth_session(registered_user):
     yield client
     client.close()
 
+@pytest.fixture
+def bad_token_session():
+    """Клиент с заведомо невалидным токеном - для проверки отказа в доступе."""
+    client = ApiClient()
+    client.headers["Authorization"] = "Bearer invalid.token.value"
+    yield client
+    client.close()
+
 # ---------- новости ----------
 
 @pytest.fixture
