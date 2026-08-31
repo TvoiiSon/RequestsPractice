@@ -1,6 +1,50 @@
-# RequestsPractice
+# Дополнительные тесты
 
-API-автотесты для https://archiscope.ru (`requests` + `pydantic` + `pytest` + `allure`).
+API-автотесты для https://archiscope.ru на `requests` + `pydantic`. Помимо обязательного списка (регистрация, повторный email, невалидные данные, логин, вход с неверными данными, создание новости с изображением и без, список новостей, список с фильтрами, новость по ID, список тегов, создание и список комментариев) в набор добавлены тесты ниже.
+
+## Контракт ответа через Pydantic-модель
+
+На каждый позитивный запрос тело ответа прогоняется через модель с `extra="forbid"` (`UserResponse`, `Token`, `NewsResponse`, `Page[NewsResponse]`, `CommentResponse`, `list[TagResponse]`). Проверка «пришёл 200» этого не ловит: если бэкенд начнёт отдавать лишнее поле, неправильный тип или потеряет обязательное — happy path останется зелёным, а сломается только сторонний клиент. Модель ловит рассинхрон со схемой сразу.
+
+## Негативная валидация тела по Swagger
+
+`test_register_missing_required_field`, `test_register_invalid_field_value`, `test_login_missing_field`, `test_login_json_instead_of_form`, `test_create_news_missing_required_field`, `test_create_comment_missing_text`
+
+Для каждого обязательного поля отдельная проверка: без поля или с невалидным значением ответ должен быть `422`, а само поле — присутствовать в `detail[*].loc`. Тело `422` валидируется по `ValidationErrorResponse`. Так фиксируется, что валидация настроена ровно на тех полях, что описаны в схеме, и с ожидаемым `type` ошибки.
+
+## Детальная проверка ответа при неверном входе
+
+`test_login_wrong_password`, `test_login_nonexistent_email`, `test_login_malformed_email`
+
+Неверный пароль, незарегистрированный email и `username` без `@` — во всех случаях сверяется не только код `401`, но и точный текст `detail` (`Incorrect email or password`). Проверять message вместе со статусом требует само задание; заодно это фиксирует, что сервер не отдаёт разные формулировки на разные виды неверных данных (утечка «такого пользователя нет» vs «пароль не тот»).
+
+## Авторизация: отсутствующий и некорректный токен
+
+`test_create_news_unauthorized`, `test_create_news_invalid_token`, `test_create_comment_unauthorized`, `test_create_comment_invalid_token`
+
+Для защищённых эндпоинтов проверяется отказ и без заголовка `Authorization`, и с синтаксически валидным, но недействительным `Bearer`-токеном (`bad_token_session`). Оба случая должны давать `401`, а не `403` и не `500`.
+
+## Некорректный id в URL
+
+`test_get_news_by_id_not_found`, `test_get_news_by_id_invalid_type`, `test_create_comment_news_not_found`, `test_get_comments_news_not_found`, `test_create_comment_invalid_news_id_type`
+
+Где в путь подставляется id новости — проверяется поведение с несуществующим числовым id (`404` + `detail`) и с нечисловым id (`422`). Примечание задания требует проверить падение с некорректным id для таких запросов.
+
+## Граничные значения регистрации
+
+`test_register_edge_values`, `test_register_without_phone`
+
+Пустые строки, строка в 2000 символов и спецсимволы (`emoji`, `<script>`, `' OR 1=1`) в полях не должны приводить к `5xx`. `test_register_without_phone` проверяет, что необязательное поле действительно необязательное и приходит `null`. Заодно вскрылось: сервер принимает пустой `first_name` с `200` — ограничения на это поле нет.
+
+## Эндпоинты вне списка задания — на заглушках
+
+`test_users.py` (`/api/users/me`), `test_admin.py` (`/api/admin/*`)
+
+Эти эндпоинты есть в API, но не входят в задание, требуют токена, а для админских — прав администратора, которых у нас нет; тело админских ответов в Swagger не описано (`{}`). Задание разрешает при отсутствии функционала использовать объекты-заглушки: фикстура `mock_api` подменяет `ApiClient.request` очередью заготовленных ответов, реальный сервер не вызывается. Проверяется работа с эндпоинтом — код ответа и разбор тела по модели — без зависимости от доступа.
+
+## Очистка данных
+
+У API нет публичных `DELETE` (только `/api/admin/*` под правами администратора). Фикстуры `registered_user` и `created_news` в teardown вызывают удаление через админские эндпоинты, но только если задан `ADMIN_TOKEN`; без него созданные в ходе прогона сущности остаются на сервере.
 
 ## Запуск
 
@@ -8,59 +52,9 @@ API-автотесты для https://archiscope.ru (`requests` + `pydantic` + `
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 pytest
-```
-
-Отчёт Allure:
-
-```bash
-pytest --alluredir=allure-results
 allure serve allure-results
 ```
 
-## Конфигурация (переменные окружения)
+Конфигурация — через окружение: `BASE_URL` (по умолчанию `https://archiscope.ru`), `ADMIN_TOKEN` (для очистки данных, по умолчанию пусто).
 
-| Переменная | По умолчанию | Назначение |
-|---|---|---|
-| `BASE_URL` | `https://archiscope.ru` | базовый адрес API |
-| `ADMIN_TOKEN` | `` (пусто) | токен админа для очистки тестовых данных после прогона |
-
-## Маркеры
-
-`api`, `smoke`, `regression`, `positive`, `negative`, `mock`.
-
-```bash
-pytest -m smoke
-pytest -m "negative and not mock"
-```
-
-## Структура
-
-```
-config.py              BASE_URL / ADMIN_TOKEN из окружения
-conftest.py            ApiClient, фикстуры (session, auth_session, registered_user,
-                       created_news, add_comment, mock_api, ...), хук attach_on_failure
-helpers/
-  routes.py            пути эндпоинтов (без хардкода строк в тестах)
-  constants.py         общие значения (MISSING_ID, NON_NUMERIC_ID, ...)
-  data_generator.py    Faker-генераторы тел запросов и мок-ответов
-models/                Pydantic-модели запросов/ответов по OpenAPI-схемам
-tests/
-  test_auth.py         регистрация, логин
-  test_news.py         CRUD новостей, теги
-  test_comments.py     комментарии
-  test_users.py        /api/users/me - на заглушках (@mock)
-  test_admin.py        /api/admin/* - на заглушках (@mock)
-```
-
-## Очистка тестовых данных
-
-У API нет публичных `DELETE`-эндпоинтов (только `/api/admin/*` под правами
-администратора). Фикстуры `registered_user` и `created_news` вызывают
-best-effort удаление через админ-эндпоинты, **только если задан `ADMIN_TOKEN`**;
-без него созданные в ходе тестов сущности остаются на сервере.
-
-## Мок-тесты
-
-`test_users.py` и `test_admin.py` покрывают эндпоинты вне списка задания
-(требуют токена / прав админа). Фикстура `mock_api` подменяет `ApiClient.request`
-очередью заготовленных ответов — реальный сервер не вызывается.
+Маркеры: `api`, `smoke`, `regression`, `positive`, `negative`, `mock`. Например `pytest -m "negative and not mock"`.

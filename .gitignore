@@ -1,35 +1,22 @@
-# Virtual environment
 venv/
 .venv/
 env/
 
-# Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.egg-info/
-.Python
 
-# Pytest / coverage
 .pytest_cache/
 .cache/
-htmlcov/
-.coverage
-.coverage.*
 
-# Allure
 allure-results/
 allure-report/
 
-# IDE
 .idea/
 .vscode/
 
-# OS
 .DS_Store
-Thumbs.db
 
-# Local env / secrets
-.env
-
+test_run.log
 *.log
+
+.env
