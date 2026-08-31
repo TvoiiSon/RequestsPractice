@@ -9,6 +9,7 @@ email-validator==2.3.0
 Faker==40.37.0
 idna==3.19
 iniconfig==2.3.0
+loguru==0.7.3
 packaging==26.3
 pluggy==1.6.0
 pydantic==2.13.5
