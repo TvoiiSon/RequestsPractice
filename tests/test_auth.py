@@ -149,3 +149,15 @@ class TestLogin:
         resp = session.post("/api/auth/login", data={"username": email, "password": "wrong-pass"})
         assert resp.status_code == 401, resp.text
         assert "detail" in resp.json()
+
+    @allure.title("Логин несуществующим email → 401")
+    @allure.story("Ошибки входа")
+    @allure.description("POST /api/auth/login с незарегистрированным email возвращает 401, тело содержит detail")
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("Негативный")
+    @pytest.mark.api
+    @pytest.mark.regression
+    def test_login_nonexistent_email(self, session, user_data):
+        resp = session.post("/api/auth/login", data={"username": user_data["email"], "password": user_data["password"]})
+        assert resp.status_code == 401, resp.text
+        assert "detail" in resp.json()
