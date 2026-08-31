@@ -13,11 +13,11 @@ class NewsResponse(BaseModel):
     title: str
     subtitle: str | None
     text: str
-    image_path: str | None
+    image_path: str | None = None
     author: UserResponse
     tags: list[TagResponse]
     created_at: datetime
-    comments_count: int
+    comments_count: int = 0
 
 class CreateNewsRequest(BaseModel):
     title: str
