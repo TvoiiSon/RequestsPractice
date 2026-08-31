@@ -2,12 +2,10 @@ import pytest
 import allure
 from loguru import logger
 from pydantic import TypeAdapter
-
 from helpers.constants import MISSING_ID, NON_NUMERIC_ID
 from helpers.routes import Routes
 from models.common import Page, ValidationErrorResponse
 from models.news import NewsResponse, TagResponse
-
 
 class TestNews:
     @allure.epic("NewsPlatform")

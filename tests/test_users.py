@@ -1,10 +1,8 @@
 import pytest
 import allure
 from loguru import logger
-
 from helpers.routes import Routes
 from models.user import UserResponse
-
 
 class TestUsersMe:
     @allure.epic("NewsPlatform")

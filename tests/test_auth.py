@@ -1,13 +1,11 @@
 import pytest
 import allure
 from loguru import logger
-
 from helpers.constants import WRONG_CREDENTIALS_DETAIL
 from helpers.routes import Routes
 from models.auth import Token
 from models.common import ValidationErrorResponse
 from models.user import UserResponse
-
 
 class TestRegister:
     @allure.epic("NewsPlatform")
@@ -141,7 +139,6 @@ class TestRegister:
             response = session.post(Routes.REGISTER, json=user_data)
 
             assert response.status_code < 500, f"Сервер упал с {response.status_code} на граничном значении"
-
 
 class TestLogin:
     @allure.epic("NewsPlatform")

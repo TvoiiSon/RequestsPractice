@@ -2,13 +2,11 @@ import pytest
 import allure
 from loguru import logger
 from pydantic import TypeAdapter
-
 from helpers.constants import MISSING_ID, NON_NUMERIC_ID
 from helpers.data_generator import generate_comment
 from helpers.routes import Routes
 from models.comments import CommentResponse
 from models.common import ValidationErrorResponse
-
 
 class TestComments:
     @allure.epic("NewsPlatform")

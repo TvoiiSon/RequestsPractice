@@ -1,12 +1,10 @@
 import logging
 from pathlib import Path
 from unittest.mock import MagicMock
-
 import pytest
 import allure
 import requests
 from loguru import logger
-
 from config import ADMIN_TOKEN, BASE_URL
 from helpers.constants import INVALID_TOKEN
 from helpers.data_generator import generate_article, generate_comment, generate_user, generate_user_response
@@ -14,18 +12,15 @@ from helpers.routes import Routes
 
 TEST_DATA = Path(__file__).parent / "test_data"
 
-
 class PropagateHandler(logging.Handler):
     def emit(self, record):
         logging.getLogger(record.name).handle(record)
-
 
 @pytest.fixture(scope="session", autouse=True)
 def configure_logging():
     logger.remove()
     logger.add(PropagateHandler(), format="{message}", level="DEBUG")
     yield
-
 
 class ApiClient(requests.Session):
     last_any: requests.Response | None = None
@@ -40,7 +35,6 @@ class ApiClient(requests.Session):
         ApiClient.last_any = response
         return response
 
-
 def admin_cleanup(path):
     if not ADMIN_TOKEN:
         return
@@ -53,20 +47,17 @@ def admin_cleanup(path):
     finally:
         client.close()
 
-
 @pytest.fixture(scope="session")
 def session():
     client = ApiClient()
     yield client
     client.close()
 
-
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     outcome = yield
     rep = outcome.get_result()
     setattr(item, f"rep_{rep.when}", rep)
-
 
 @pytest.fixture(autouse=True)
 def attach_on_failure(request):
@@ -83,27 +74,22 @@ def attach_on_failure(request):
             attachment_type=allure.attachment_type.TEXT,
         )
 
-
 @pytest.fixture
 def user_data():
     return generate_user()
-
 
 @pytest.fixture
 def article_data():
     return generate_article()
 
-
 @pytest.fixture
 def mock_user():
     return generate_user_response()
-
 
 @pytest.fixture
 def image_file():
     path = TEST_DATA / "images.jpeg"
     return (path.name, path.read_bytes(), "image/jpeg")
-
 
 @pytest.fixture
 def registered_user(session):
@@ -114,7 +100,6 @@ def registered_user(session):
     logger.info(f"Регистрация пользователя email: {user['email']}")
     yield {"request": user, "response": body}
     admin_cleanup(Routes.admin_user(body["id"]))
-
 
 @pytest.fixture
 def auth_session(registered_user):
@@ -127,14 +112,12 @@ def auth_session(registered_user):
     yield client
     client.close()
 
-
 @pytest.fixture
 def bad_token_session():
     client = ApiClient()
     client.headers["Authorization"] = INVALID_TOKEN
     yield client
     client.close()
-
 
 @pytest.fixture
 def mock_api(monkeypatch):
@@ -160,7 +143,6 @@ def mock_api(monkeypatch):
 
     return add
 
-
 @pytest.fixture
 def created_news(auth_session, article_data):
     response = auth_session.post(Routes.NEWS, data=article_data)
@@ -169,7 +151,6 @@ def created_news(auth_session, article_data):
     logger.info(f"Создана новость id={news['id']} title={news['title']}")
     yield news
     admin_cleanup(Routes.admin_news(news["id"]))
-
 
 @pytest.fixture
 def add_comment(auth_session):

@@ -1,12 +1,10 @@
 import pytest
 import allure
 from loguru import logger
-
 from helpers.constants import MISSING_ID
 from helpers.routes import Routes
 from models.common import Page
 from models.user import UserResponse
-
 
 class TestAdmin:
     @allure.epic("NewsPlatform")
