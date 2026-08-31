@@ -3,6 +3,7 @@ import pytest
 from requests import Response
 from models.common import ValidationErrorResponse
 from models.user import UserResponse
+from models.auth import Token
 
 @allure.epic("Auth")
 @allure.feature("Registration")
@@ -116,4 +117,23 @@ class TestRegister:
         user_data[field] = value
         resp = session.post("/api/auth/register", json=user_data)
         assert resp.status_code < 500, resp.text
+
+@allure.epic("Auth")
+@allure.feature("Login")
+class TestLogin:
+    @allure.title("Логин с валидными данными → 200 + Token")
+    @allure.story("Успешный вход")
+    @allure.severity(allure.severity_level.CRITICAL)
+    @allure.tag("Позитивный")
+    @pytest.mark.api
+    @pytest.mark.smoke
+    def test_login_valid(self, session, registered_user):
+        creds = registered_user["request"]
+        resp = session.post("/api/auth/login",
+                            data={"username": creds["email"], "password": creds["password"]})
+
+        assert resp.status_code == 200, resp.text
+        token = Token.model_validate(resp.json())
+        assert token.token_type == "bearer"
+        assert token.access_token
 

@@ -56,3 +56,10 @@ def attach_on_failure(request, session):
 @pytest.fixture(scope="function")
 def user_data():
     return generate_user()
+
+@pytest.fixture(scope="function")
+def registered_user(session):
+    user = generate_user()
+    resp = session.post("/api/auth/register", json=user)
+    assert resp.status_code == 200, resp.text
+    return {"request": user, "response": resp.json()}   
