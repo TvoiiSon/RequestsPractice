@@ -1,5 +1,7 @@
 import base64
 import logging
+from unittest.mock import MagicMock
+
 import allure
 import pytest
 import requests
@@ -104,6 +106,38 @@ def bad_token_session():
     client.headers["Authorization"] = "Bearer invalid.token.value"
     yield client
     client.close()
+
+# ---------- заглушки (моки) ----------
+
+@pytest.fixture
+def mock_api(monkeypatch):
+    """Подменяет ApiClient.request очередью заранее заданных ответов - реальный API не вызывается.
+
+    mock_api(200, {"id": 1, ...})          # один ответ
+    mock_api(200, {...}); mock_api(404)    # несколько ответов подряд
+    """
+    queue: list[MagicMock] = []
+
+    def fake_request(self, method, url, *args, **kwargs):
+        assert queue, f"неожиданный запрос {method} {url}: мок-ответы кончились"
+        resp = queue.pop(0)
+        resp.request = MagicMock(method=method, url=url,
+                                 body=kwargs.get("json") or kwargs.get("data"))
+        ApiClient.last_any = resp
+        return resp
+
+    monkeypatch.setattr(ApiClient, "request", fake_request)
+
+    def add(status: int = 200, json_body=None, text: str | None = None) -> MagicMock:
+        resp = MagicMock(spec=requests.Response)
+        resp.status_code = status
+        resp.ok = status < 400
+        resp.json.return_value = {} if json_body is None else json_body
+        resp.text = text if text is not None else str(json_body)
+        queue.append(resp)
+        return resp
+
+    return add
 
 # ---------- новости ----------
 

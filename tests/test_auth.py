@@ -1,18 +1,15 @@
 import allure
 import pytest
 from requests import Response
-
 from models.auth import Token
 from models.common import ValidationErrorResponse
 from models.user import UserResponse
 
 WRONG_CREDS_DETAIL = "Incorrect email or password"
 
-
 @allure.epic("Auth")
 @allure.feature("Registration")
 class TestRegister:
-
     @allure.title("Регистрация с валидными данными")
     @allure.story("Успешная регистрация")
     @allure.description("POST /api/auth/register с валидным телом возвращает 200 и тело по схеме UserResponse")
@@ -126,11 +123,9 @@ class TestRegister:
         resp = session.post("/api/auth/register", json=user_data)
         assert resp.status_code < 500, resp.text
 
-
 @allure.epic("Auth")
 @allure.feature("Login")
 class TestLogin:
-
     @allure.title("Логин с валидными данными → 200 + Token")
     @allure.story("Успешный вход")
     @allure.description("POST /api/auth/login с form-данными возвращает 200 и тело по схеме Token")

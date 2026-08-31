@@ -1,18 +1,13 @@
 import allure
 import pytest
 from pydantic import TypeAdapter
-
 from models.comments import CommentResponse
 from models.common import ValidationErrorResponse
 from helpers.data_generator import generate_comment
 
-
 @allure.epic("News")
 @allure.feature("Comments")
 class TestComments:
-
-    # ---------- позитивные ----------
-
     @allure.title("Создание комментария к новости → 200")
     @allure.story("Создание комментария")
     @allure.description("POST /api/news/{news_id}/comments с телом {text}; ответ по схеме CommentResponse")
@@ -48,8 +43,6 @@ class TestComments:
         assert resp.status_code == 200, resp.text
         comments = TypeAdapter(list[CommentResponse]).validate_python(resp.json())
         assert any(c.text == text for c in comments)
-
-    # ---------- негативные ----------
 
     @allure.title("Создание комментария без токена → 401")
     @allure.story("Создание комментария")

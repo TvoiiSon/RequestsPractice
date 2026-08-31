@@ -1,17 +1,12 @@
 import allure
 import pytest
 from pydantic import TypeAdapter
-
 from models.common import Page, ValidationErrorResponse
 from models.news import NewsResponse, TagResponse
-
 
 @allure.epic("News")
 @allure.feature("News")
 class TestNews:
-
-    # ---------- позитивные ----------
-
     @allure.title("Создание новости без изображения → 200")
     @allure.story("Создание новости")
     @allure.description("POST /api/news/ с обязательными полями создаёт новость; ответ по схеме NewsResponse")
@@ -111,8 +106,6 @@ class TestNews:
         assert resp.status_code == 200, resp.text
         tags = TypeAdapter(list[TagResponse]).validate_python(resp.json())
         assert len(tags) >= 1
-
-    # ---------- негативные ----------
 
     @allure.title("Создание новости без токена → 401")
     @allure.story("Создание новости")
