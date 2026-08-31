@@ -1,12 +1,17 @@
 import allure
 import pytest
 from pydantic import TypeAdapter
+
+from helpers.constants import MISSING_ID, NON_NUMERIC_ID
+from helpers.routes import Routes
 from models.common import Page, ValidationErrorResponse
 from models.news import NewsResponse, TagResponse
+
 
 @allure.epic("News")
 @allure.feature("News")
 class TestNews:
+
     @allure.title("Создание новости без изображения → 200")
     @allure.story("Создание новости")
     @allure.description("POST /api/news/ с обязательными полями создаёт новость; ответ по схеме NewsResponse")
@@ -16,7 +21,7 @@ class TestNews:
     @pytest.mark.smoke
     @pytest.mark.positive
     def test_create_news_without_image(self, auth_session, article_data):
-        resp = auth_session.post("/api/news/", data=article_data)
+        resp = auth_session.post(Routes.NEWS, data=article_data)
 
         assert resp.status_code == 200, resp.text
         news = NewsResponse.model_validate(resp.json())
@@ -32,8 +37,8 @@ class TestNews:
     @pytest.mark.api
     @pytest.mark.regression
     @pytest.mark.positive
-    def test_create_news_with_image(self, auth_session, article_data, png_image):
-        resp = auth_session.post("/api/news/", data=article_data, files={"image": png_image})
+    def test_create_news_with_image(self, auth_session, article_data, news_image):
+        resp = auth_session.post(Routes.NEWS, data=article_data, files={"image": news_image})
 
         assert resp.status_code == 200, resp.text
         news = NewsResponse.model_validate(resp.json())
@@ -49,7 +54,7 @@ class TestNews:
     @pytest.mark.smoke
     @pytest.mark.positive
     def test_get_all_news(self, session, created_news):
-        resp = session.get("/api/news/")
+        resp = session.get(Routes.NEWS)
 
         assert resp.status_code == 200, resp.text
         page = Page[NewsResponse].model_validate(resp.json())
@@ -65,15 +70,22 @@ class TestNews:
     @pytest.mark.regression
     @pytest.mark.positive
     def test_get_news_with_filters(self, session, created_news):
-        tag = created_news["tags"][0]["name"] if created_news["tags"] else None
-        params = {"page": 1, "per_page": 5, "search": "а", "tag": tag}
-        resp = session.get("/api/news/", params={k: v for k, v in params.items() if v is not None})
+        per_page = 5
+        params = {
+            "page": 1,
+            "per_page": per_page,
+            "search": created_news["title"].split()[0],
+        }
+        if created_news["tags"]:
+            params["tag"] = created_news["tags"][0]["name"]
+
+        resp = session.get(Routes.NEWS, params=params)
 
         assert resp.status_code == 200, resp.text
         page = Page[NewsResponse].model_validate(resp.json())
         assert page.page == 1
-        assert page.per_page == 5
-        assert len(page.items) <= 5
+        assert page.per_page == per_page
+        assert len(page.items) <= per_page
 
     @allure.title("Детальная информация о новости по ID → 200")
     @allure.story("Чтение новостей")
@@ -85,7 +97,7 @@ class TestNews:
     @pytest.mark.positive
     def test_get_news_by_id(self, session, created_news):
         news_id = created_news["id"]
-        resp = session.get(f"/api/news/{news_id}")
+        resp = session.get(Routes.news_item(news_id))
 
         assert resp.status_code == 200, resp.text
         news = NewsResponse.model_validate(resp.json())
@@ -101,7 +113,7 @@ class TestNews:
     @pytest.mark.regression
     @pytest.mark.positive
     def test_get_all_tags(self, session, created_news):
-        resp = session.get("/api/news/tags")
+        resp = session.get(Routes.NEWS_TAGS)
 
         assert resp.status_code == 200, resp.text
         tags = TypeAdapter(list[TagResponse]).validate_python(resp.json())
@@ -116,7 +128,7 @@ class TestNews:
     @pytest.mark.regression
     @pytest.mark.negative
     def test_create_news_unauthorized(self, session, article_data):
-        resp = session.post("/api/news/", data=article_data)
+        resp = session.post(Routes.NEWS, data=article_data)
 
         assert resp.status_code == 401, resp.text
 
@@ -129,7 +141,7 @@ class TestNews:
     @pytest.mark.regression
     @pytest.mark.negative
     def test_create_news_invalid_token(self, bad_token_session, article_data):
-        resp = bad_token_session.post("/api/news/", data=article_data)
+        resp = bad_token_session.post(Routes.NEWS, data=article_data)
 
         assert resp.status_code == 401, resp.text
 
@@ -144,7 +156,7 @@ class TestNews:
     @pytest.mark.parametrize("field", ["title", "text"])
     def test_create_news_missing_required_field(self, auth_session, article_data, field):
         del article_data[field]
-        resp = auth_session.post("/api/news/", data=article_data)
+        resp = auth_session.post(Routes.NEWS, data=article_data)
 
         assert resp.status_code == 422, resp.text
         err = ValidationErrorResponse.model_validate(resp.json())
@@ -159,7 +171,7 @@ class TestNews:
     @pytest.mark.regression
     @pytest.mark.negative
     def test_get_news_by_id_not_found(self, session):
-        resp = session.get("/api/news/99999999")
+        resp = session.get(Routes.news_item(MISSING_ID))
 
         assert resp.status_code == 404, resp.text
         assert "detail" in resp.json()
@@ -173,6 +185,6 @@ class TestNews:
     @pytest.mark.regression
     @pytest.mark.negative
     def test_get_news_by_id_invalid_type(self, session):
-        resp = session.get("/api/news/not-a-number")
+        resp = session.get(Routes.news_item(NON_NUMERIC_ID))
 
         assert resp.status_code == 422, resp.text

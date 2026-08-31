@@ -8,18 +8,10 @@
 import allure
 import pytest
 
+from helpers.constants import MISSING_ID
+from helpers.routes import Routes
 from models.common import Page
 from models.user import UserResponse
-
-VALID_USER = {
-    "id": 1,
-    "email": "user@example.com",
-    "first_name": "Иван",
-    "last_name": "Петров",
-    "phone": None,
-    "photo_path": None,
-    "created_at": "2026-01-01T12:00:00",
-}
 
 
 @allure.epic("Admin")
@@ -34,15 +26,15 @@ class TestAdminMocked:
     @allure.severity(allure.severity_level.CRITICAL)
     @allure.tag("Позитивный")
     @pytest.mark.positive
-    def test_list_users(self, session, mock_api):
-        mock_api(200, {"items": [VALID_USER], "total": 1, "page": 1, "per_page": 20, "total_pages": 1})
+    def test_list_users(self, session, mock_api, mock_user):
+        mock_api(200, {"items": [mock_user], "total": 1, "page": 1, "per_page": 20, "total_pages": 1})
 
-        resp = session.get("/api/admin/users")
+        resp = session.get(Routes.ADMIN_USERS)
 
         assert resp.status_code == 200
         page = Page[UserResponse].model_validate(resp.json())
         assert page.total == 1
-        assert page.items[0].email == VALID_USER["email"]
+        assert page.items[0].email == mock_user["email"]
 
     @allure.title("GET /api/admin/stats → 200, счётчики (мок)")
     @allure.story("Статистика")
@@ -53,7 +45,7 @@ class TestAdminMocked:
     def test_stats(self, session, mock_api):
         mock_api(200, {"users": 10, "news": 5, "comments": 42})
 
-        resp = session.get("/api/admin/stats")
+        resp = session.get(Routes.ADMIN_STATS)
 
         assert resp.status_code == 200
         body = resp.json()
@@ -66,10 +58,10 @@ class TestAdminMocked:
     @allure.severity(allure.severity_level.NORMAL)
     @allure.tag("Позитивный")
     @pytest.mark.positive
-    def test_toggle_active(self, session, mock_api):
-        mock_api(200, VALID_USER)
+    def test_toggle_active(self, session, mock_api, mock_user):
+        mock_api(200, mock_user)
 
-        resp = session.put("/api/admin/users/1/toggle-active")
+        resp = session.put(Routes.admin_user_toggle(mock_user["id"]))
 
         assert resp.status_code == 200
         UserResponse.model_validate(resp.json())
@@ -80,10 +72,10 @@ class TestAdminMocked:
     @allure.severity(allure.severity_level.NORMAL)
     @allure.tag("Позитивный")
     @pytest.mark.positive
-    def test_delete_user(self, session, mock_api):
+    def test_delete_user(self, session, mock_api, mock_user):
         mock_api(200, {"detail": "User deleted"})
 
-        resp = session.delete("/api/admin/users/1")
+        resp = session.delete(Routes.admin_user(mock_user["id"]))
 
         assert resp.status_code == 200
         assert "detail" in resp.json()
@@ -97,7 +89,7 @@ class TestAdminMocked:
     def test_forbidden_for_non_admin(self, session, mock_api):
         mock_api(403, {"detail": "Forbidden"})
 
-        resp = session.get("/api/admin/users")
+        resp = session.get(Routes.ADMIN_USERS)
 
         assert resp.status_code == 403
         assert resp.json()["detail"]
@@ -111,7 +103,7 @@ class TestAdminMocked:
     def test_delete_user_not_found(self, session, mock_api):
         mock_api(404, {"detail": "User not found"})
 
-        resp = session.delete("/api/admin/users/99999999")
+        resp = session.delete(Routes.admin_user(MISSING_ID))
 
         assert resp.status_code == 404
         assert resp.json()["detail"]

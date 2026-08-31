@@ -7,17 +7,8 @@
 import allure
 import pytest
 
+from helpers.routes import Routes
 from models.user import UserResponse
-
-VALID_USER = {
-    "id": 1,
-    "email": "user@example.com",
-    "first_name": "Иван",
-    "last_name": "Петров",
-    "phone": None,
-    "photo_path": None,
-    "created_at": "2026-01-01T12:00:00",
-}
 
 
 @allure.epic("Users")
@@ -32,15 +23,15 @@ class TestUsersMeMocked:
     @allure.severity(allure.severity_level.CRITICAL)
     @allure.tag("Позитивный")
     @pytest.mark.positive
-    def test_get_me(self, session, mock_api):
-        mock_api(200, VALID_USER)
+    def test_get_me(self, session, mock_api, mock_user):
+        mock_api(200, mock_user)
 
-        resp = session.get("/api/users/me")
+        resp = session.get(Routes.USERS_ME)
 
         assert resp.status_code == 200
         user = UserResponse.model_validate(resp.json())
-        assert user.id == VALID_USER["id"]
-        assert user.email == VALID_USER["email"]
+        assert user.id == mock_user["id"]
+        assert user.email == mock_user["email"]
 
     @allure.title("PUT /api/users/me меняет first_name → 200 (мок)")
     @allure.story("Профиль")
@@ -48,14 +39,15 @@ class TestUsersMeMocked:
     @allure.severity(allure.severity_level.NORMAL)
     @allure.tag("Позитивный")
     @pytest.mark.positive
-    def test_update_me(self, session, mock_api):
-        mock_api(200, {**VALID_USER, "first_name": "Пётр"})
+    def test_update_me(self, session, mock_api, mock_user):
+        new_name = mock_user["first_name"] + "-updated"
+        mock_api(200, {**mock_user, "first_name": new_name})
 
-        resp = session.put("/api/users/me", json={"first_name": "Пётр"})
+        resp = session.put(Routes.USERS_ME, json={"first_name": new_name})
 
         assert resp.status_code == 200
         user = UserResponse.model_validate(resp.json())
-        assert user.first_name == "Пётр"
+        assert user.first_name == new_name
 
     @allure.title("POST /api/users/me/photo → 200, photo_path заполнен (мок)")
     @allure.story("Профиль")
@@ -63,10 +55,10 @@ class TestUsersMeMocked:
     @allure.severity(allure.severity_level.NORMAL)
     @allure.tag("Позитивный")
     @pytest.mark.positive
-    def test_upload_photo(self, session, mock_api):
-        mock_api(200, {**VALID_USER, "photo_path": "/uploads/user_1.png"})
+    def test_upload_photo(self, session, mock_api, mock_user, png_image):
+        mock_api(200, {**mock_user, "photo_path": f"/uploads/user_{mock_user['id']}.png"})
 
-        resp = session.post("/api/users/me/photo", files={"photo": ("a.png", b"x", "image/png")})
+        resp = session.post(Routes.USERS_ME_PHOTO, files={"photo": png_image})
 
         assert resp.status_code == 200
         user = UserResponse.model_validate(resp.json())
@@ -81,7 +73,7 @@ class TestUsersMeMocked:
     def test_get_me_unauthorized(self, session, mock_api):
         mock_api(401, {"detail": "Not authenticated"})
 
-        resp = session.get("/api/users/me")
+        resp = session.get(Routes.USERS_ME)
 
         assert resp.status_code == 401
         assert resp.json()["detail"]
