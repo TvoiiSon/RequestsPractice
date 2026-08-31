@@ -161,3 +161,32 @@ class TestLogin:
         resp = session.post("/api/auth/login", data={"username": user_data["email"], "password": user_data["password"]})
         assert resp.status_code == 401, resp.text
         assert "detail" in resp.json()
+
+    @allure.title("Логин без обязательного поля {field} → 422")
+    @allure.story("Валидация тела запроса")
+    @allure.description("POST /api/auth/login без обязательного поля формы возвращает 422, поле присутствует в detail[*].loc ответа")
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("Негативный")
+    @pytest.mark.api
+    @pytest.mark.regression
+    @pytest.mark.parametrize("field", ["username", "password"])
+    def test_login_missing_field(self, session, registered_user, field):
+        creds = registered_user["request"]
+        data = {"username": creds["email"], "password": creds["password"]}
+        del data[field]
+        resp = session.post("/api/auth/login", data=data)
+        assert resp.status_code == 422, resp.text
+        err = ValidationErrorResponse.model_validate(resp.json())
+        assert any(field in item.loc for item in err.detail)
+
+    @allure.title("Логин с телом JSON вместо формы → 422")
+    @allure.story("Валидация тела запроса")
+    @allure.description("POST /api/auth/login ожидает x-www-form-urlencoded; тело JSON возвращает 422")
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("Негативный")
+    @pytest.mark.api
+    @pytest.mark.regression
+    def test_login_json_instead_of_form(self, session, registered_user):
+        creds = registered_user["request"]
+        resp = session.post("/api/auth/login", json={"username": creds["email"], "password": creds["password"]})
+        assert resp.status_code == 422, resp.text
