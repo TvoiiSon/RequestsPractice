@@ -82,4 +82,38 @@ class TestRegister:
         assert resp.status_code == 422, resp.text
         err = ValidationErrorResponse.model_validate(resp.json())
         assert any(field in item.loc for item in err.detail)
-    
+        assert any(i.type == exp_type and field in i.loc for i in err.detail)
+
+    @allure.title("Повторная регистрация с тем же email → клиентская ошибка")
+    @allure.story("Валидация тела запроса")
+    @allure.description("Второй POST /api/auth/register с тем же email не создаёт пользователя: ответ 4xx (не 5xx), тело содержит detail")
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("Негативный")
+    @pytest.mark.api
+    @pytest.mark.regression
+    def test_register_duplicate_email(self, session, user_data: dict):
+        first = session.post("/api/auth/register", json=user_data)
+        assert first.status_code == 200, first.text
+
+        second = session.post("/api/auth/register", json=user_data)
+        assert 400 <= second.status_code < 500, second.text
+        assert "detail" in second.json()
+
+    @allure.title("Граничное значение поля {field} не роняет сервер")
+    @allure.story("Граничные значения")
+    @allure.description("Пустые строки, очень длинные строки и спецсимволы в полях не приводят к 5xx")
+    @allure.severity(allure.severity_level.MINOR)
+    @allure.tag("Edge")
+    @pytest.mark.api
+    @pytest.mark.regression
+    @pytest.mark.parametrize("field, value", [
+        ("email", ""),
+        ("first_name", ""),
+        ("first_name", "A" * 2000),
+        ("first_name", "Иван 😀 <script> ' OR 1=1"),
+    ], ids=["empty_email", "empty_first_name", "long_first_name", "special_chars"])
+    def test_register_edge_values(self, session, user_data: dict, field, value):
+        user_data[field] = value
+        resp = session.post("/api/auth/register", json=user_data)
+        assert resp.status_code < 500, resp.text
+
