@@ -137,3 +137,15 @@ class TestLogin:
         assert token.token_type == "bearer"
         assert token.access_token
 
+    @allure.title("Логин с неверным паролем → 401")
+    @allure.story("Ошибки входа")
+    @allure.description("POST /api/auth/login с верным email и неверным паролем возвращает 401, тело содержит detail")
+    @allure.severity(allure.severity_level.NORMAL)
+    @allure.tag("Негативный")
+    @pytest.mark.api
+    @pytest.mark.regression
+    def test_login_wrong_password(self, session, registered_user):
+        email = registered_user["request"]["email"]
+        resp = session.post("/api/auth/login", data={"username": email, "password": "wrong-pass"})
+        assert resp.status_code == 401, resp.text
+        assert "detail" in resp.json()
