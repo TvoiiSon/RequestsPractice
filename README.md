@@ -45,16 +45,3 @@ API-автотесты для https://archiscope.ru на `requests` + `pydantic`
 ## Очистка данных
 
 У API нет публичных `DELETE` (только `/api/admin/*` под правами администратора). Фикстуры `registered_user` и `created_news` в teardown вызывают удаление через админские эндпоинты, но только если задан `ADMIN_TOKEN`; без него созданные в ходе прогона сущности остаются на сервере.
-
-## Запуск
-
-```bash
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-pytest
-allure serve allure-results
-```
-
-Конфигурация — через окружение: `BASE_URL` (по умолчанию `https://archiscope.ru`), `ADMIN_TOKEN` (для очистки данных, по умолчанию пусто).
-
-Маркеры: `api`, `smoke`, `regression`, `positive`, `negative`, `mock`. Например `pytest -m "negative and not mock"`.
